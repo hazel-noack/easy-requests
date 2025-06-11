@@ -3,8 +3,28 @@ from hashlib import sha1
 from pathlib import Path
 import requests
 import pickle
+import sqlite3
+from datetime import datetime
 
 from . import CACHE_DIRECTORY
+
+
+# SQLite database file path
+DB_FILE = Path(CACHE_DIRECTORY, "cache_metadata.db")
+
+# Initialize the database
+def _init_db():
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS url_cache (
+            url_hash TEXT PRIMARY KEY,
+            last_updated TIMESTAMP
+        )
+        """)
+        conn.commit()
+
+# Initialize the database when module is imported
+_init_db()
 
 
 def get_url_hash(url: str) -> str:
