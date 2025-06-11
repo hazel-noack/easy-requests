@@ -3,6 +3,7 @@ from typing import Optional
 import requests
 from urllib.parse import urlparse, urlunsplit, ParseResult
 
+from . import cache
 
 class Connection:
     def __init__(self, session: Optional[requests.Session] = None) -> None:
@@ -20,3 +21,10 @@ class Connection:
 
         self.session.headers.update(**headers)
 
+    def get(self, url: str):
+        if cache.has_cache(url):
+            return cache.get_cache(url)
+
+        resp = self.session.get(url)
+        cache.write_cache(url, resp)
+        return resp
