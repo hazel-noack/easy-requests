@@ -1,6 +1,8 @@
 [project]
 name = "python-requests"
-dependencies = []
+dependencies = [
+    "requests~=2.32.4"
+]
 dynamic = []
 authors = []
 description = "A Python library for simplified HTTP requests, featuring rate limiting, browser-like headers, and automatic retries. Built on the official `requests` library for reliability."
@@ -13,13 +15,14 @@ classifiers = [
 license-files = [
     "LICENSE"
 ]
+version = "0.0.0"
 
 [project.scripts]
 python-requests = "python_requests.__main__:cli"
 
 [project.urls]
-Homepage = "/Hazel/python-requests"
-Issues = "REPO_LINKissues"
+Homepage = "https://gitea.elara.ws/Hazel/python-requests"
+Issues = "https://gitea.elara.ws/Hazel/python-requests/issues"
 
 [build-system]
 requires = ["hatchling"]
@@ -34,5 +37,3 @@ include = ["python_requests/*.py"]
 [tool.hatch.build.targets.wheel]
 packages = ["python_requests"]
 
-[tool.hatch.version]
-path = "python_requests/__about__.py"
