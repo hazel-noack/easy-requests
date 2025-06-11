@@ -120,7 +120,8 @@ class Connection:
         self.last_request = time.time()
 
 
-        # TODO validate response and retrying if necessary 
+        if not self.validate_response(response):
+            return self.send_request(request, attempt=attempt+1)
 
         if self.cache_enable:
             cache.write_cache(url, response)
