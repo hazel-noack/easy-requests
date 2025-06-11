@@ -6,7 +6,7 @@ from . import cache
 
 
 def main():
-    c = Connection()
+    c = Connection(cache_enable=False)
     c.generate_headers()
     print(c.session.headers)
 
