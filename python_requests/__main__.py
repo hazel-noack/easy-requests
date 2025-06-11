@@ -1,6 +1,8 @@
 import argparse
 import logging
 
+from .connections import Connection
+
 
 def cli():
     parser = argparse.ArgumentParser(
@@ -28,6 +30,13 @@ def cli():
             level=logging.INFO,
             format='%(asctime)s - %(levelname)s - %(message)s'
         )
+
+
+    c = Connection()
+    c.generate_headers()
+    print(c.session.headers)
+
+    
 
 
 if __name__ == "__main__":
