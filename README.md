@@ -5,6 +5,7 @@ A Python library for simplified HTTP requests, featuring rate limiting, browser-
 ## ToDo
 
 - [ ] basic structure
+- [ ] caching
 - [ ] add cloudscraper
 
 ## License
