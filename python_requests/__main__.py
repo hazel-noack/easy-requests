@@ -2,6 +2,15 @@ import argparse
 import logging
 
 from .connections import Connection
+from . import cache
+
+
+def main():
+    c = Connection()
+    c.generate_headers()
+    print(c.session.headers)
+
+    print(c.get("http://ip.org/"))
 
 
 def cli():
@@ -15,6 +24,22 @@ def cli():
         action="store_true",
         help="Sets the logging level to debug."
     )
+
+    # Cache management subcommands
+    subparsers = parser.add_subparsers(dest='cache_command', help='Cache management commands')
+
+    # Show cache stats
+    show_parser = subparsers.add_parser('show-cache', help='Show cache statistics')
+    show_parser.set_defaults(func=handle_show_cache)
+
+    # Clean cache (expired entries)
+    clean_parser = subparsers.add_parser('clean-cache', help='Clean expired cache entries')
+    clean_parser.set_defaults(func=handle_clean_cache)
+
+    # Clear cache (all entries)
+    clear_parser = subparsers.add_parser('clear-cache', help='Clear ALL cache entries')
+    clear_parser.set_defaults(func=handle_clear_cache)
+
 
     args = parser.parse_args()
 
@@ -32,11 +57,46 @@ def cli():
         )
 
 
-    c = Connection()
-    c.generate_headers()
-    print(c.session.headers)
+    if hasattr(args, 'func'):
+        args.func(args)
+    else:
+        main()
 
-    print(c.get("http://ip.org/"))
+
+def handle_show_cache(args):
+    """Handle the show-cache command"""
+    try:
+        file_count, db_count = cache.get_cache_stats()
+        logging.info(f"Cache Statistics:")
+        logging.info(f"  - Files in cache: {file_count}")
+        logging.info(f"  - Database entries: {db_count}")
+    except Exception as e:
+        logging.error(f"Failed to get cache statistics: {str(e)}")
+
+def handle_clean_cache(args):
+    """Handle the clean-cache command"""
+    try:
+        files_deleted, entries_deleted = cache.clean_cache()
+        logging.info(f"Cleaned cache:")
+        logging.info(f"  - Files deleted: {files_deleted}")
+        logging.info(f"  - Database entries removed: {entries_deleted}")
+    except Exception as e:
+        logging.error(f"Failed to clean cache: {str(e)}")
+
+def handle_clear_cache(args):
+    """Handle the clear-cache command"""
+    try:
+        # Confirm before clearing all cache
+        confirm = input("Are you sure you want to clear ALL cache? This cannot be undone. [y/N]: ")
+        if confirm.lower() == 'y':
+            files_deleted, entries_deleted = cache.clear_cache()
+            logging.info(f"Cleared ALL cache:")
+            logging.info(f"  - Files deleted: {files_deleted}")
+            logging.info(f"  - Database entries removed: {entries_deleted}")
+        else:
+            logging.info("Cache clearing cancelled")
+    except Exception as e:
+        logging.error(f"Failed to clear cache: {str(e)}")
 
 
 if __name__ == "__main__":

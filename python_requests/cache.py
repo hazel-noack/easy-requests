@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 from codecs import encode
 from hashlib import sha1
 from pathlib import Path
@@ -99,3 +99,84 @@ def write_cache(
             (url_hash, expires_at.isoformat())
         )
         conn.commit()
+
+
+
+def clean_cache() -> Tuple[int, int]:
+    """
+    Clean up expired cache entries.
+    Returns tuple of (files_deleted, db_entries_deleted)
+    """
+    now = datetime.now()
+    files_deleted = 0
+    db_entries_deleted = 0
+    
+    with sqlite3.connect(DB_FILE) as conn:
+        # Get all expired entries
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT url_hash FROM url_cache WHERE expires_at < ?",
+            (now.isoformat(),)
+        )
+        expired_hashes = [row[0] for row in cursor.fetchall()]
+        
+        # Delete the files and count deletions
+        for url_hash in expired_hashes:
+            cache_file = Path(CACHE_DIRECTORY, f"{url_hash}.request")
+            try:
+                if cache_file.exists():
+                    cache_file.unlink()
+                    files_deleted += 1
+            except OSError:
+                continue
+        
+        # Delete database records and count deletions
+        cursor.execute(
+            "DELETE FROM url_cache WHERE expires_at < ?",
+            (now.isoformat(),)
+        )
+        db_entries_deleted = cursor.rowcount
+        conn.commit()
+    
+    return (files_deleted, db_entries_deleted)
+
+def clear_cache() -> Tuple[int, int]:
+    """
+    Clear ALL cache entries regardless of expiration.
+    Returns tuple of (files_deleted, db_entries_deleted)
+    """
+    files_deleted = 0
+    db_entries_deleted = 0
+    
+    # Delete all cache files
+    for cache_file in Path(CACHE_DIRECTORY).glob("*.request"):
+        try:
+            cache_file.unlink()
+            files_deleted += 1
+        except OSError:
+            continue
+    
+    # Delete all database entries
+    with sqlite3.connect(DB_FILE) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM url_cache")
+        db_entries_deleted = cursor.rowcount
+        conn.commit()
+    
+    return (files_deleted, db_entries_deleted)
+
+def get_cache_stats() -> Tuple[int, int]:
+    """
+    Get cache statistics.
+    Returns tuple of (total_files, total_db_entries)
+    """
+    # Count cache files
+    total_files = len(list(Path(CACHE_DIRECTORY).glob("*.request")))
+    
+    # Count database entries
+    with sqlite3.connect(DB_FILE) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM url_cache")
+        total_db_entries = cursor.fetchone()[0]
+    
+    return (total_files, total_db_entries)
