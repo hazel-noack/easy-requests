@@ -7,7 +7,18 @@ import pickle
 import sqlite3
 from datetime import datetime, timedelta
 
-from . import CACHE_DIRECTORY
+from . import __name__
+
+CACHE_DIRECTORY = f"/tmp/{__name__}"
+
+
+def set_cache_directory(cache_directory: Optional[str] = None):
+    global CACHE_DIRECTORY
+
+    if cache_directory is not None:
+        CACHE_DIRECTORY = cache_directory
+    
+    Path(CACHE_DIRECTORY).mkdir(exist_ok=True, parents=True)
 
 
 # SQLite database file path
