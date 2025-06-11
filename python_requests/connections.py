@@ -14,6 +14,7 @@ class Connection:
     def __init__(
         self, 
         session: Optional[requests.Session] = None,
+        headers: Optional[dict] = None,
         cache_enable: bool = True,
         cache_expires_after: Optional[timedelta] = None,
         request_delay: float = 0,
@@ -23,6 +24,8 @@ class Connection:
         max_retries: Optional[int] = 5,
     ) -> None:
         self.session = session if session is not None else requests.Session()
+        if headers is not None:
+            self.session.headers.update(**headers)
         
         # cache related config
         self.cache_enable = cache_enable
@@ -103,12 +106,16 @@ class Connection:
             
         return True
 
-    def send_request(self, request: requests.Request, attempt: int = 0) -> requests.Response:
+    def send_request(self, request: requests.Request, attempt: int = 0, cache_enable: bool = True, cache_identifier: str = "", **kwargs) -> requests.Response:
         url = request.url 
         if url is None:
             raise ValueError("can't send a request without url")
-        if self.cache_enable and cache.has_cache(url):
-            return cache.get_cache(url)
+        cache_url = url + cache_identifier
+
+        cache_enable = self.cache_enable and cache_enable
+        if cache_enable and cache.has_cache(cache_url):
+            return cache.get_cache(cache_url)
+
         
         current_delay = self.request_delay + (self.additional_delay_per_try * attempt)
         elapsed_time = time.time() - self.last_request
@@ -121,7 +128,7 @@ class Connection:
         self.last_request = time.time()
         
         try:
-            response = self.session.send(request.prepare())
+            response = self.session.send(self.session.prepare_request(request))
         except requests.ConnectionError:
             if self.max_retries is not None and self.max_retries <= attempt:
                 raise
@@ -135,27 +142,27 @@ class Connection:
                 )
             return self.send_request(request, attempt=attempt+1)
 
-        if self.cache_enable:
-            cache.write_cache(url, response)
+        if cache_enable:
+            cache.write_cache(cache_url, response)
         return response
 
 
-    def get(self, url: str, headers: Optional[dict] = None, **kwargs) -> requests.Response:
+    def get(self, url: str, headers: Optional[dict] = None, cache_enable: bool = True, cache_identifier: str = "", **kwargs) -> requests.Response:
         return self.send_request(requests.Request(
             'GET',
             url=url,
             headers=headers,
             **kwargs
-        ))
+        ), cache_enable=cache_enable, cache_identifier=cache_identifier, **kwargs)
     
-    def post(self, url: str, headers: Optional[dict] = None, json: Optional[dict] = None, **kwargs) -> requests.Response:
+    def post(self, url: str, data: Optional[dict] = None, headers: Optional[dict] = None, cache_enable: bool = True, cache_identifier: str = "",  **kwargs) -> requests.Response:
         return self.send_request(requests.Request(
             'POST',
             url=url,
             headers=headers,
-            json=json,
+            data=data,
             **kwargs,
-        ))
+        ), cache_enable=cache_enable, cache_identifier=cache_identifier, **kwargs)
 
 
 class SilentConnection(Connection):
