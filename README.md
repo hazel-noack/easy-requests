@@ -4,13 +4,41 @@ A Python library for simplified HTTP requests, featuring rate limiting, browser-
 
 ## Features
 
-- saving responses to cache
+- Save responses to cache
+- Use any session (e.g., bypass Cloudflare using [cloudscraper](https://pypi.org/project/cloudscraper/))
+- Configurable wait between requests without thread blocking
+- Automatic retries for failed requests
 
-## ToDo
+## Installation
 
-- [ ] basic structure
-- [x] caching
-- [ ] add cloudscraper
+```bash
+pip install python-requests
+```
+
+## Usage
+
+### Basic Usage
+
+```python
+from python_requests import Connection, set_cache_directory
+
+set_cache_directory("/tmp/your-project")
+connection = Connection()
+
+response = connection.get("https://example.com")
+```
+
+### Using with Cloudscraper
+
+```python
+from python_requests import Connection, set_cache_directory
+import cloudscraper
+
+set_cache_directory("/tmp/your-project")
+connection = Connection(cloudscraper.create_scraper())
+
+response = connection.get("https://example.com")
+```
 
 ## License
 
