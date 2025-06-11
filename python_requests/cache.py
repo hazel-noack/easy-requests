@@ -36,7 +36,16 @@ def get_url_file(url: str) -> Path:
 
 
 def has_cache(url: str) -> bool:
-    return get_url_file(url).exists()
+    cache_exists = get_url_file(url).exists()
+    if not cache_exists:
+        return False
+    
+    # Check if the URL hash exists in the database
+    url_hash = get_url_hash(url)
+    with sqlite3.connect(DB_FILE) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM url_cache WHERE url_hash = ?", (url_hash,))
+        return cursor.fetchone() is not None
 
 
 def get_cache(url: str) -> requests.Response:
@@ -45,5 +54,17 @@ def get_cache(url: str) -> requests.Response:
 
 
 def write_cache(url: str, resp: requests.Response):
+    url_hash = get_url_hash(url)
+    current_time = datetime.now().isoformat()
+    
+    # Write the cache file
     with get_url_file(url).open("wb") as url_file:
         pickle.dump(resp, url_file)
+    
+    # Update the database
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO url_cache (url_hash, last_updated) VALUES (?, ?)",
+            (url_hash, current_time)
+        )
+        conn.commit()
