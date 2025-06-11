@@ -4,10 +4,12 @@ A Python library for simplified HTTP requests, featuring rate limiting, browser-
 
 ## Features
 
+- saving responses to cache
+
 ## ToDo
 
 - [ ] basic structure
-- [-] caching
+- [x] caching
 - [ ] add cloudscraper
 
 ## License

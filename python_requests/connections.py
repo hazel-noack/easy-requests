@@ -1,8 +1,8 @@
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Set
 import requests
 from datetime import timedelta
-from urllib.parse import urlparse, urlunsplit, ParseResult
+import time
 
 from . import cache
 
@@ -11,12 +11,46 @@ class Connection:
         self, 
         session: Optional[requests.Session] = None,
         cache_enable: bool = True,
-        cache_expires_after: Optional[timedelta] = None
+        cache_expires_after: Optional[timedelta] = None,
+        request_delay: float = 3,
+        additional_delay_per_try: float = 1,
+        error_status_codes: Optional[Set[int]] = None,
+        rate_limit_status_codes: Optional[Set[int]] = None,
     ) -> None:
         self.session = session if session is not None else requests.Session()
-
+        
+        # cache related config
         self.cache_enable = cache_enable
         self.cache_expires_after = cache_expires_after if cache_expires_after is not None else timedelta(hours=1)
+
+        # waiting between requests
+        self.request_delay = request_delay
+        self.additional_delay_per_try = additional_delay_per_try
+        self.last_request: float = 0
+
+        # response validation config
+        self.error_status_codes = error_status_codes if error_status_codes is not None else {
+            400,  # Bad Request
+            401,  # Unauthorized
+            403,  # Forbidden
+            404,  # Not Found
+            405,  # Method Not Allowed
+            406,  # Not Acceptable
+            410,  # Gone
+            418,  # I'm a teapot
+            422,  # Unprocessable Entity
+            451,  # Unavailable For Legal Reasons
+            500,  # Internal Server Error
+            501,  # Not Implemented
+            502,  # Bad Gateway
+            503,  # Service Unavailable
+            504,  # Gateway Timeout
+        }
+        
+        self.rate_limit_status_codes = rate_limit_status_codes if rate_limit_status_codes is not None else {
+            429,  # Too Many Requests
+            509,  # Bandwidth Limit Exceeded
+        }
 
     def generate_headers(self, referer: Optional[str] = None):
         headers = {
@@ -30,6 +64,38 @@ class Connection:
 
         self.session.headers.update(**headers)
 
+    def validate_response(self, response: requests.Response) -> bool:
+        """
+        Validates the HTTP response and raises appropriate exceptions or returns True if successful.
+        
+        Args:
+            response: The response object to validate
+            
+        Returns:
+            bool: True if the response is valid (status code < 400 and not in error/rate limit codes)
+            
+        Raises:
+            requests.HTTPError: For response status codes that indicate client or server errors
+            RateLimitExceeded: For response status codes that indicate rate limiting
+        """
+        if response.status_code in self.error_status_codes:
+            raise requests.HTTPError(
+                f"Server returned error status code {response.status_code}: {response.reason}",
+                response=response
+            )
+            
+        if response.status_code in self.rate_limit_status_codes:
+            return False
+            
+        # For any other 4xx or 5xx status codes not explicitly configured
+        if response.status_code >= 400:
+            raise requests.HTTPError(
+                f"Server returned unexpected status code {response.status_code}: {response.reason}",
+                response=response
+            )
+            
+        return True
+
     def send_request(self, request: requests.Request) -> requests.Response:
         url = request.url 
         if url is None:
@@ -37,7 +103,12 @@ class Connection:
         if self.cache_enable and cache.has_cache(url):
             return cache.get_cache(url)
         
+        # TODO wait the normal configured amount
+        
         response = self.session.send(request.prepare())
+
+        # TODO validate response and retrying if necessary 
+
         if self.cache_enable:
             cache.write_cache(url, response)
         return response
