@@ -117,10 +117,15 @@ class Connection:
         if to_wait > 0:
             log.info(f"waiting {to_wait} at attempt {attempt}: {url}")
             time.sleep(to_wait)
-        
-        response = self.session.send(request.prepare())
 
         self.last_request = time.time()
+        
+        try:
+            response = self.session.send(request.prepare())
+        except requests.ConnectionError:
+            if self.max_retries is not None and self.max_retries <= attempt:
+                raise
+            return self.send_request(request, attempt=attempt+1)
 
         if not self.validate_response(response):
             if self.max_retries is not None and self.max_retries <= attempt:
