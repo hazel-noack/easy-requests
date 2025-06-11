@@ -11,8 +11,10 @@ A Python library for simplified HTTP requests, featuring rate limiting, browser-
 
 ## Installation
 
+**Note:** *I couldn't upload it as `python-requests` because pypi does not allow it.*
+
 ```bash
-pip install python-requests
+pip install easy-requests
 ```
 
 ## Usage

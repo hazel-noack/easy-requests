@@ -1,5 +1,5 @@
 [project]
-name = "python-requests"
+name = "easy-requests"
 dependencies = [
     "requests~=2.32.4"
 ]
