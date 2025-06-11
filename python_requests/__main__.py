@@ -36,7 +36,7 @@ def cli():
     c.generate_headers()
     print(c.session.headers)
 
-    
+    print(c.get("http://ip.org/"))
 
 
 if __name__ == "__main__":
