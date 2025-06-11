@@ -9,7 +9,7 @@ def main():
     c = Connection(cache_enable=False, request_delay=1.5, rate_limit_status_codes={200})
     c.generate_headers()
 
-    print(c.get("http://ip.org/"))
+    print(c.get("http://www.does_not_exist.xyz"))
 
 
 def cli():
