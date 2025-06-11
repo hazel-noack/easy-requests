@@ -3,8 +3,12 @@ from typing import Optional, Set
 import requests
 from datetime import timedelta
 import time
+import logging
 
 from . import cache
+
+
+log = logging.getLogger(__name__)
 
 class Connection:
     def __init__(
@@ -12,7 +16,7 @@ class Connection:
         session: Optional[requests.Session] = None,
         cache_enable: bool = True,
         cache_expires_after: Optional[timedelta] = None,
-        request_delay: float = 3,
+        request_delay: float = 0,
         additional_delay_per_try: float = 1,
         error_status_codes: Optional[Set[int]] = None,
         rate_limit_status_codes: Optional[Set[int]] = None,
@@ -96,16 +100,25 @@ class Connection:
             
         return True
 
-    def send_request(self, request: requests.Request) -> requests.Response:
+    def send_request(self, request: requests.Request, attempt: int = 0) -> requests.Response:
         url = request.url 
         if url is None:
             raise ValueError("can't send a request without url")
         if self.cache_enable and cache.has_cache(url):
             return cache.get_cache(url)
         
-        # TODO wait the normal configured amount
+        current_delay = self.request_delay + (self.additional_delay_per_try * attempt)
+        elapsed_time = time.time() - self.last_request
+        to_wait = current_delay - elapsed_time
+
+        if to_wait > 0:
+            log.info(f"waiting {to_wait} at attempt {attempt}: {url}")
+            time.sleep(to_wait)
         
         response = self.session.send(request.prepare())
+
+        self.last_request = time.time()
+
 
         # TODO validate response and retrying if necessary 
 

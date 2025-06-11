@@ -6,10 +6,12 @@ from . import cache
 
 
 def main():
-    c = Connection(cache_enable=False)
+    c = Connection(cache_enable=False, request_delay=3)
     c.generate_headers()
-    print(c.session.headers)
 
+    print(c.get("http://ip.org/"))
+    print(c.get("http://ip.org/"))
+    print(c.get("http://ip.org/"))
     print(c.get("http://ip.org/"))
 
 
