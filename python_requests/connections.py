@@ -20,6 +20,7 @@ class Connection:
         additional_delay_per_try: float = 1,
         error_status_codes: Optional[Set[int]] = None,
         rate_limit_status_codes: Optional[Set[int]] = None,
+        max_retries: Optional[int] = 5,
     ) -> None:
         self.session = session if session is not None else requests.Session()
         
@@ -55,6 +56,8 @@ class Connection:
             429,  # Too Many Requests
             509,  # Bandwidth Limit Exceeded
         }
+
+        self.max_retries = max_retries
 
     def generate_headers(self, referer: Optional[str] = None):
         headers = {
@@ -119,8 +122,12 @@ class Connection:
 
         self.last_request = time.time()
 
-
         if not self.validate_response(response):
+            if self.max_retries is not None and self.max_retries <= attempt:
+                raise requests.HTTPError(
+                    f"Max retries exceeded, server is rate limiting {response.status_code}: {response.reason}",
+                    response=response
+                )
             return self.send_request(request, attempt=attempt+1)
 
         if self.cache_enable:
