@@ -2,10 +2,12 @@
 
 A Python library for simplified HTTP requests, featuring rate limiting, browser-like headers, and automatic retries. Built on the official `requests` library for reliability.
 
+## Features
+
 ## ToDo
 
 - [ ] basic structure
-- [ ] caching
+- [-] caching
 - [ ] add cloudscraper
 
 ## License
