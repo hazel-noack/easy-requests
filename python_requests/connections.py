@@ -151,3 +151,11 @@ class Connection:
             json=json,
             **kwargs,
         ))
+
+
+class SilentConnection(Connection):
+    def send_request(self, request: requests.Request, attempt: int = 0) -> Optional[requests.Response]:
+        try:
+            return super().send_request(request, attempt)
+        except requests.HTTPError as e:
+            log.warning(str(e))

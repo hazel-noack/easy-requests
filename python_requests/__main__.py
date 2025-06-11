@@ -1,7 +1,7 @@
 import argparse
 import logging
 
-from .connections import Connection
+from .connections import Connection, SilentConnection
 from . import cache
 
 
