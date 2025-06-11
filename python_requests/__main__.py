@@ -6,7 +6,7 @@ from . import cache
 
 
 def main():
-    c = Connection(cache_enable=False, request_delay=3)
+    c = Connection(cache_enable=False, request_delay=3, rate_limit_status_codes={200})
     c.generate_headers()
 
     print(c.get("http://ip.org/"))
