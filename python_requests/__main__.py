@@ -1,8 +1,7 @@
 import argparse
 import logging
 
-from .connections import Connection, SilentConnection
-from . import cache
+from . import Connection, clean_cache, clear_cache, set_cache_directory, get_cache_stats, __folder__
 
 
 def main():
@@ -49,11 +48,13 @@ def cli():
             format='%(asctime)s - %(levelname)s - %(message)s'
         )
         logging.debug("Debug logging enabled")
+        set_cache_directory("cache")
     else:
         logging.basicConfig(
             level=logging.INFO,
             format='%(asctime)s - %(levelname)s - %(message)s'
         )
+        set_cache_directory()
 
 
     if hasattr(args, 'func'):
@@ -65,7 +66,7 @@ def cli():
 def handle_show_cache(args):
     """Handle the show-cache command"""
     try:
-        file_count, db_count = cache.get_cache_stats()
+        file_count, db_count = get_cache_stats()
         logging.info(f"Cache Statistics:")
         logging.info(f"  - Files in cache: {file_count}")
         logging.info(f"  - Database entries: {db_count}")
@@ -75,7 +76,7 @@ def handle_show_cache(args):
 def handle_clean_cache(args):
     """Handle the clean-cache command"""
     try:
-        files_deleted, entries_deleted = cache.clean_cache()
+        files_deleted, entries_deleted = clean_cache()
         logging.info(f"Cleaned cache:")
         logging.info(f"  - Files deleted: {files_deleted}")
         logging.info(f"  - Database entries removed: {entries_deleted}")
@@ -88,7 +89,7 @@ def handle_clear_cache(args):
         # Confirm before clearing all cache
         confirm = input("Are you sure you want to clear ALL cache? This cannot be undone. [y/N]: ")
         if confirm.lower() == 'y':
-            files_deleted, entries_deleted = cache.clear_cache()
+            files_deleted, entries_deleted = clear_cache()
             logging.info(f"Cleared ALL cache:")
             logging.info(f"  - Files deleted: {files_deleted}")
             logging.info(f"  - Database entries removed: {entries_deleted}")

@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 from codecs import encode
 from hashlib import sha1
 from pathlib import Path
@@ -9,22 +9,10 @@ from datetime import datetime, timedelta
 
 from . import __name__
 
-CACHE_DIRECTORY = f"/tmp/{__name__}"
-
-
-def set_cache_directory(cache_directory: Optional[str] = None):
-    global CACHE_DIRECTORY
-
-    if cache_directory is not None:
-        CACHE_DIRECTORY = cache_directory
-    
-    Path(CACHE_DIRECTORY).mkdir(exist_ok=True, parents=True)
-
-
-# SQLite database file path
+CACHE_DIRECTORY = Path(f"/tmp/{__name__}")
 DB_FILE = Path(CACHE_DIRECTORY, "cache_metadata.db")
 
-# Initialize the database
+
 def _init_db():
     with sqlite3.connect(DB_FILE) as conn:
         conn.execute("""
@@ -35,8 +23,17 @@ def _init_db():
         """)
         conn.commit()
 
-# Initialize the database when module is imported
-_init_db()
+
+def set_cache_directory(cache_directory: Optional[Union[str, Path]] = None):
+    global CACHE_DIRECTORY, DB_FILE
+
+    if cache_directory is not None:
+        CACHE_DIRECTORY = cache_directory
+        DB_FILE = Path(CACHE_DIRECTORY, "cache_metadata.db")
+        _init_db()
+    
+    print(CACHE_DIRECTORY, DB_FILE)
+    Path(CACHE_DIRECTORY).mkdir(exist_ok=True, parents=True)
 
 
 def get_url_hash(url: str) -> str:
