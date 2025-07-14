@@ -30,10 +30,10 @@ def set_cache_directory(cache_directory: Optional[Union[str, Path]] = None):
     if cache_directory is not None:
         CACHE_DIRECTORY = cache_directory
         DB_FILE = Path(CACHE_DIRECTORY, "cache_metadata.db")
-        _init_db()
     
-    print(CACHE_DIRECTORY, DB_FILE)
+    print(f"initializing cache at {CACHE_DIRECTORY} and db as {DB_FILE}")
     Path(CACHE_DIRECTORY).mkdir(exist_ok=True, parents=True)
+    _init_db()
 
 
 def get_url_hash(url: str) -> str:
