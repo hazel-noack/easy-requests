@@ -4,7 +4,9 @@ dependencies = [
     "requests~=2.32.4"
 ]
 dynamic = []
-authors = []
+authors = [
+    {name = "Hazel Noack", email = "hazel.noack@proton.me"},
+]
 description = "A Python library for simplified HTTP requests, featuring rate limiting, browser-like headers, and automatic retries. Built on the official `requests` library for reliability."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -18,11 +20,11 @@ license-files = [
 version = "0.0.1"
 
 [project.scripts]
-python-requests = "python_requests.__main__:cli"
+easy-requests = "easy_requests.__main__:cli"
 
 [project.urls]
-Homepage = "https://gitea.elara.ws/Hazel/python-requests"
-Issues = "https://gitea.elara.ws/Hazel/python-requests/issues"
+Homepage = "https://github.com/hazel-noack/easy-requests"
+Issues = "https://github.com/hazel-noack/easy-requests/issues"
 
 [build-system]
 requires = ["hatchling"]
@@ -32,8 +34,8 @@ build-backend = "hatchling.build"
 directory = "dist"
 
 [tool.hatch.build.targets.sdist]
-include = ["python_requests/*.py"]
+include = ["easy_requests/*.py"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["python_requests"]
+packages = ["easy_requests"]
 
