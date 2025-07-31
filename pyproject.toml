@@ -17,7 +17,7 @@ classifiers = [
 license-files = [
     "LICENSE"
 ]
-version = "0.0.1"
+version = "0.0.2"
 
 [project.scripts]
 easy-requests = "easy_requests.__main__:cli"
