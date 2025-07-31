@@ -1,4 +1,4 @@
-# Python-Requests
+# Easy-Requests
 
 A Python library for simplified HTTP requests, featuring rate limiting, browser-like headers, and automatic retries. Built on the official `requests` library for reliability.
 
@@ -8,10 +8,6 @@ A Python library for simplified HTTP requests, featuring rate limiting, browser-
 - Use any session (e.g., bypass Cloudflare using [cloudscraper](https://pypi.org/project/cloudscraper/))
 - Configurable wait between requests without thread blocking
 - Automatic retries for failed requests
-
-## Installation
-
-**Note:** *I couldn't upload it as `python-requests` because pypi does not allow it.*
 
 ```bash
 pip install easy-requests
