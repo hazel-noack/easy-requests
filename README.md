@@ -1,5 +1,7 @@
 # Easy-Requests
 
+![publishing workflow](https://github.com/hazel-noack/easy-requests/actions/workflows/python-publish.yml/badge.svg)
+
 A Python library for simplified HTTP requests, featuring rate limiting, browser-like headers, and automatic retries. Built on the official `requests` library for reliability.
 
 ## Features
