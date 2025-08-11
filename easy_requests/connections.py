@@ -5,31 +5,30 @@ from datetime import timedelta
 import time
 import logging
 
-from . import cache
+from . import cache as c
 
 
 logger = logging.getLogger("easy_requests")
+
 
 class Connection:
     def __init__(
         self, 
         session: Optional[requests.Session] = None,
         headers: Optional[dict] = None,
-        cache_enable: bool = True,
-        cache_expires_after: Optional[timedelta] = None,
         request_delay: float = 0,
         additional_delay_per_try: float = 1,
         error_status_codes: Optional[Set[int]] = None,
         rate_limit_status_codes: Optional[Set[int]] = None,
         max_retries: Optional[int] = 5,
+        cache: Optional[c.Cache] = None,
     ) -> None:
         self.session = session if session is not None else requests.Session()
         if headers is not None:
             self.session.headers.update(**headers)
         
         # cache related config
-        self.cache_enable = cache_enable
-        self.cache_expires_after = cache_expires_after if cache_expires_after is not None else timedelta(hours=1)
+        self.cache = c.DEFAULT_CACHE if cache is None else cache
 
         # waiting between requests
         self.request_delay = request_delay
@@ -106,16 +105,15 @@ class Connection:
             
         return True
 
-    def send_request(self, request: requests.Request, attempt: int = 0, cache_enable: bool = True, cache_identifier: str = "", **kwargs) -> requests.Response:
+    def send_request(self, request: requests.Request, attempt: int = 0, cache_identifier: str = "", cache: Optional[c.Cache] = None, **kwargs) -> requests.Response:
         url = request.url 
         if url is None:
             raise ValueError("can't send a request without url")
         cache_url = url + cache_identifier
 
-        cache_enable = self.cache_enable and cache_enable
-        if cache_enable and cache.has_cache(cache_url):
+        cache = self.cache if cache is None else cache
+        if cache is not None and cache.has_cache(cache_url):
             return cache.get_cache(cache_url)
-
         
         current_delay = self.request_delay + (self.additional_delay_per_try * attempt)
         elapsed_time = time.time() - self.last_request
@@ -142,31 +140,32 @@ class Connection:
                 )
             return self.send_request(request, attempt=attempt+1)
 
-        if cache_enable:
+        if cache is not None:
             cache.write_cache(cache_url, response)
+        
         return response
 
 
-    def get(self, url: str, headers: Optional[dict] = None, cache_enable: bool = True, cache_identifier: str = "", **kwargs):
+    def get(self, url: str, headers: Optional[dict] = None, cache_identifier: str = "", cache: Optional[c.Cache] = None, **kwargs):
         return self.send_request(requests.Request(
             'GET',
             url=url,
             headers=headers,
             **kwargs
-        ), cache_enable=cache_enable, cache_identifier=cache_identifier, **kwargs)
+        ), cache_identifier=cache_identifier, cache=cache, **kwargs)
     
-    def post(self, url: str, data: Optional[dict] = None, headers: Optional[dict] = None, cache_enable: bool = True, cache_identifier: str = "",  **kwargs):
+    def post(self, url: str, data: Optional[dict] = None, headers: Optional[dict] = None, cache_identifier: str = "", cache: Optional[c.Cache] = None,  **kwargs):
         return self.send_request(requests.Request(
             'POST',
             url=url,
             headers=headers,
             data=data,
             **kwargs,
-        ), cache_enable=cache_enable, cache_identifier=cache_identifier, **kwargs)
+        ), cache_identifier=cache_identifier, cache=cache, **kwargs)
 
 
 class SilentConnection(Connection):
-    def send_request(self, request: requests.Request, attempt: int = 0, cache_enable: bool = True, cache_identifier: str = "", **kwargs) -> Optional[requests.Response]:
+    def send_request(self, request: requests.Request, attempt: int = 0, cache_identifier: str = "", cache: Optional[c.Cache] = None, **kwargs) -> Optional[requests.Response]:
         l = locals()
         l.update(l.pop("kwargs"))
         try:
