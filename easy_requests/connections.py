@@ -8,7 +8,7 @@ import logging
 from . import cache
 
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger("easy_requests")
 
 class Connection:
     def __init__(
@@ -122,7 +122,7 @@ class Connection:
         to_wait = current_delay - elapsed_time
 
         if to_wait > 0:
-            log.info(f"waiting {to_wait} at attempt {attempt}: {url}")
+            logger.info(f"waiting {to_wait} at attempt {attempt}: {url}")
             time.sleep(to_wait)
 
         self.last_request = time.time()
@@ -147,7 +147,7 @@ class Connection:
         return response
 
 
-    def get(self, url: str, headers: Optional[dict] = None, cache_enable: bool = True, cache_identifier: str = "", **kwargs) -> requests.Response:
+    def get(self, url: str, headers: Optional[dict] = None, cache_enable: bool = True, cache_identifier: str = "", **kwargs):
         return self.send_request(requests.Request(
             'GET',
             url=url,
@@ -155,7 +155,7 @@ class Connection:
             **kwargs
         ), cache_enable=cache_enable, cache_identifier=cache_identifier, **kwargs)
     
-    def post(self, url: str, data: Optional[dict] = None, headers: Optional[dict] = None, cache_enable: bool = True, cache_identifier: str = "",  **kwargs) -> requests.Response:
+    def post(self, url: str, data: Optional[dict] = None, headers: Optional[dict] = None, cache_enable: bool = True, cache_identifier: str = "",  **kwargs):
         return self.send_request(requests.Request(
             'POST',
             url=url,
@@ -166,8 +166,11 @@ class Connection:
 
 
 class SilentConnection(Connection):
-    def send_request(self, request: requests.Request, attempt: int = 0) -> Optional[requests.Response]:
+    def send_request(self, request: requests.Request, attempt: int = 0, cache_enable: bool = True, cache_identifier: str = "", **kwargs) -> Optional[requests.Response]:
+        l = locals()
+        l.update(l.pop("kwargs"))
         try:
-            return super().send_request(request, attempt)
-        except requests.HTTPError as e:
-            log.warning(str(e))
+            return Connection.send_request(**l)
+        except requests.exceptions.RequestException as e:
+            logger.warning(e)
+            return None

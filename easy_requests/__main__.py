@@ -1,11 +1,14 @@
 import argparse
 import logging
 
-from . import Connection, clean_cache, clear_cache, set_cache_directory, get_cache_stats, __folder__
+from . import Connection, SilentConnection, clean_cache, clear_cache, set_cache_directory, get_cache_stats, __folder__
+
+
+logger = logging.getLogger("easy_requests")
 
 
 def main():
-    c = Connection(cache_enable=False, request_delay=1.5, rate_limit_status_codes={200})
+    c = SilentConnection(cache_enable=False, request_delay=.5, rate_limit_status_codes={200})
     c.generate_headers()
 
     print(c.get("http://www.does_not_exist.xyz"))
@@ -61,7 +64,6 @@ def cli():
         args.func(args)
     else:
         main()
-
 
 def handle_show_cache(args):
     """Handle the show-cache command"""

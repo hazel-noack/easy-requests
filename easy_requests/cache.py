@@ -1,3 +1,4 @@
+import logging
 from typing import Optional, Tuple, Union
 from codecs import encode
 from hashlib import sha1
@@ -8,6 +9,10 @@ import sqlite3
 from datetime import datetime, timedelta
 
 from . import __name__
+
+
+logger = logging.getLogger("easy_requests")
+
 
 CACHE_DIRECTORY = Path(f"/tmp/{__name__}")
 DB_FILE = Path(CACHE_DIRECTORY, "cache_metadata.db")
@@ -31,7 +36,7 @@ def set_cache_directory(cache_directory: Optional[Union[str, Path]] = None):
         CACHE_DIRECTORY = cache_directory
         DB_FILE = Path(CACHE_DIRECTORY, "cache_metadata.db")
     
-    print(f"initializing cache at {CACHE_DIRECTORY} and db as {DB_FILE}")
+    logging.info(f"initializing cache at {CACHE_DIRECTORY} and db as {DB_FILE}")
     Path(CACHE_DIRECTORY).mkdir(exist_ok=True, parents=True)
     _init_db()
 
