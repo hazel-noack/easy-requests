@@ -230,6 +230,16 @@ ROOT_CACHE: Cache = Cache(
 )
 
 def init_cache(directory: str, expires_after: timedelta = timedelta(days=float(os.getenv("EASY_REQUESTS_CACHE_EXPIRES", 1)))):
+    """Configure the default cache storage location and expiration time.
+
+    Args:
+        directory: Cache storage directory path.
+        expires_after: Cache expiration duration.
+    
+    Example:
+        >>> init_cache('/tmp/cache', timedelta(hours=6))  # 6-hour expiration
+        >>> init_cache('/tmp/cache')  # Uses default expiration (1 day)
+    """
     global ROOT_CACHE
     cache_directory = directory
     cache_expires_after = expires_after

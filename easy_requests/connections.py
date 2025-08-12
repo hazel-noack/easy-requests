@@ -13,6 +13,21 @@ logger = logging.getLogger("easy_requests")
 
 
 class Connection:
+    """Initialize a Connection with request and caching configuration.
+
+    Args:
+        session: Existing requests Session to use (creates new if None).  
+        headers: Default headers to add to all requests.
+        request_delay: Base delay between requests in seconds.
+        additional_delay_per_try: Extra delay added per retry attempt.
+        error_status_codes: HTTP status codes that trigger immediate failure.
+        rate_limit_status_codes: HTTP status codes that trigger retries.
+        max_retries: Maximum number of retry attempts for failed requests.
+        cache_enabled: Whether response caching is enabled.
+        cache_directory: Directory path for cached responses.
+        cache_expires_after: Duration before cached responses expire.
+    """
+            
     def __init__(
         self, 
 
@@ -28,6 +43,8 @@ class Connection:
         cache_directory: Optional[str] = None,
         cache_expires_after: Optional[timedelta] = None,
     ) -> None:
+
+
         self.session = session if session is not None else requests.Session()
         if headers is not None:
             self.session.headers.update(**headers)
@@ -195,6 +212,20 @@ class Connection:
         cache_expires_after: Optional[timedelta] = None,
         **kwargs,
     ):
+        """Send a prepared Request object with retry and caching support.
+    
+        Args:
+            request: Prepared requests.Request to send.
+            max_retries: Override default max retry attempts.
+            cache_identifier: Additional key for cache differentiation.
+            referer: Referer header to set for this request.
+            cache_enabled: Temporarily enable/disable caching.
+            cache_directory: Alternate cache location for this request.
+            cache_expires_after: Custom cache expiration for this request.
+        Returns:
+            requests.Response: The server's response.
+        """
+
         new_kwargs = locals()
         new_kwargs.update(new_kwargs.pop("kwargs"))
 
@@ -216,6 +247,22 @@ class Connection:
         cache_expires_after: Optional[timedelta] = None,
         **kwargs,
     ):
+        """Send a GET request with retry and caching support.
+        
+        Args:
+            url: Target URL for the request.
+            headers: Additional headers for this request.
+            request_kwargs: Additional arguments for Request constructor.
+            max_retries: Override default max retry attempts.
+            cache_identifier: Additional key for cache differentiation.
+            referer: Referer header to set for this request.
+            cache_enabled: Temporarily enable/disable caching.
+            cache_directory: Alternate cache location for this request.
+            cache_expires_after: Custom cache expiration for this request.
+        Returns:
+            requests.Response: The server's response.
+        """
+
         new_kwargs = locals()
         new_kwargs.pop("self")
         new_kwargs.update(new_kwargs.pop("kwargs"))
@@ -243,6 +290,23 @@ class Connection:
         cache_expires_after: Optional[timedelta] = None,
         **kwargs,
     ):
+        """Send a POST request with retry and caching support.
+    
+        Args:
+            url: Target URL for the request.
+            data: Data to send in request body.
+            headers: Additional headers for this request.
+            request_kwargs: Additional arguments for Request constructor.
+            max_retries: Override default max retry attempts.
+            cache_identifier: Additional key for cache differentiation.
+            referer: Referer header to set for this request.
+            cache_enabled: Temporarily enable/disable caching.
+            cache_directory: Alternate cache location for this request.
+            cache_expires_after: Custom cache expiration for this request.
+        Returns:
+            requests.Response: The server's response.
+        """
+
         new_kwargs = locals()
         new_kwargs.pop("self")
         new_kwargs.update(new_kwargs.pop("kwargs"))
@@ -257,6 +321,22 @@ class Connection:
 
 
 class SilentConnection(Connection):
+    """Initialize a Connection with request and caching configuration.  
+    If a request was not successful it returns None instead of raising and exception
+
+    Args:
+        session: Existing requests Session to use (creates new if None).  
+        headers: Default headers to add to all requests.
+        request_delay: Base delay between requests in seconds.
+        additional_delay_per_try: Extra delay added per retry attempt.
+        error_status_codes: HTTP status codes that trigger immediate failure.
+        rate_limit_status_codes: HTTP status codes that trigger retries.
+        max_retries: Maximum number of retry attempts for failed requests.
+        cache_enabled: Whether response caching is enabled.
+        cache_directory: Directory path for cached responses.
+        cache_expires_after: Duration before cached responses expire.
+    """
+    
     def _send_request(self,*args, **kwargs) -> Optional[requests.Response]:
         try:
             return super()._send_request(*args, **kwargs)
