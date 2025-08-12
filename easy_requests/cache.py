@@ -41,18 +41,28 @@ class Cache:
 
     key_cache_enabled = "cache_enabled"
     key_cache_directory = "cache_directory"
-    key_cache_expires_after = "expires_after"
+    key_cache_expires_after = "cache_expires_after"
     def fork(self, **kwargs) -> Cache:
-        directory = kwargs.get(self.key_cache_directory, self._directory)
+        directory = kwargs.get(self.key_cache_directory) or self._directory
+        
         if self.key_cache_enabled in kwargs:
             if not kwargs[self.key_cache_enabled]:
                 directory = None
             elif directory is None:
                 logger.error("can't enable cache because no cache directory is defined")
 
+        expires_after = kwargs.get(self.key_cache_expires_after)
+        if expires_after is None:
+            expires_after = self.expires_after
+
+        if directory == self.directory and expires_after == self.expires_after:
+            logger.debug("cache didn't change, returning self")
+            return self
+
+        logger.debug("forking cache")
         return Cache(
-            directory=directory,
-            expires_after=kwargs.get(self.key_cache_expires_after, self.expires_after)
+            directory=None if directory is None else str(directory),
+            expires_after=expires_after,
         )
 
     @property
@@ -69,21 +79,17 @@ class Cache:
         return self.directory / "cache_metadata.db"
 
     @staticmethod
-    def get_url_hash(url: str) -> str:
-        return sha1(encode(url.strip(), "utf-8")).hexdigest()
+    def get_hash(*args: str) -> str:
+        return sha1(encode("".join(elem.strip() for elem in args), "utf-8")).hexdigest()
 
+    def get_url_file(self, url_hash: str) -> Path:
+        return self.directory / f"{url_hash}.request"
 
-    def get_url_file(self, url: str) -> Path:
-        return self.directory / f"{self.get_url_hash(url)}.request"
-
-
-    def has_cache(self, url: str) -> bool:
+    def has_cache(self, url_hash: str) -> bool:
         if not self.is_enabled:
             return False
 
-        url_hash = self.get_url_hash(url)
-        cache_file = self.get_url_file(url)
-        
+        cache_file = self.get_url_file(url_hash)
         if not cache_file.exists():
             return False
         
@@ -112,24 +118,17 @@ class Cache:
         
         return True
 
-
-    def get_cache(self, url: str) -> requests.Response:
-        with self.get_url_file(url).open("rb") as cache_file:
+    def get_cache(self, url_hash: str) -> requests.Response:
+        logger.info("%s - returning cache", url_hash)
+        with self.get_url_file(url_hash).open("rb") as cache_file:
             return pickle.load(cache_file)
 
-
-    def write_cache(
-        self,
-        url: str,
-        resp: requests.Response,
-    ):
-        url_hash = self.get_url_hash(url)
-        
+    def write_cache(self, url_hash: str, response: requests.Response):
         expires_at = datetime.now() + self.expires_after
         
         # Write the cache file
-        with self.get_url_file(url).open("wb") as url_file:
-            pickle.dump(resp, url_file)
+        with self.get_url_file(url_hash).open("wb") as url_file:
+            pickle.dump(response, url_file)
         
         # Update the database
         with sqlite3.connect(self.database_file) as conn:
@@ -228,7 +227,9 @@ ROOT_CACHE: Cache = Cache(
     ),
 )
 
-def init_cache(cache_directory: str, expires_after: timedelta = timedelta(days=float(os.getenv("EASY_REQUESTS_CACHE_EXPIRES", 1)))):
+def init_cache(directory: str, expires_after: timedelta = timedelta(days=float(os.getenv("EASY_REQUESTS_CACHE_EXPIRES", 1)))):
     global ROOT_CACHE
+    cache_directory = directory
+    cache_expires_after = expires_after
     ROOT_CACHE = ROOT_CACHE.fork(**locals())
 

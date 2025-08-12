@@ -14,7 +14,7 @@ logger = logging.getLogger("easy_requests")
 class Connection:
     def __init__(
         self, 
-        
+
         session: Optional[requests.Session] = None,
         headers: Optional[dict] = None,
         request_delay: float = 0,
@@ -22,14 +22,17 @@ class Connection:
         error_status_codes: Optional[Set[int]] = None,
         rate_limit_status_codes: Optional[Set[int]] = None,
         max_retries: Optional[int] = 5,
-        cache: Optional[c.Cache] = None,
+        
+        cache_enabled: Optional[bool] = None,
+        cache_directory: Optional[str] = None,
+        cache_expires_after: Optional[timedelta] = None,
     ) -> None:
         self.session = session if session is not None else requests.Session()
         if headers is not None:
             self.session.headers.update(**headers)
         
         # cache related config
-        self.cache = c.DEFAULT_CACHE if cache is None else cache
+        self.cache = c.ROOT_CACHE.fork(**locals())
 
         # waiting between requests
         self.request_delay = request_delay
@@ -106,7 +109,69 @@ class Connection:
             
         return True
 
-    def send_request(self, request: requests.Request, attempt: int = 0, cache_identifier: str = "", cache: Optional[c.Cache] = None, **kwargs) -> requests.Response:
+    def _send_request(self, request: requests.Request, attempt: int = 0, **kwargs) -> requests.Response:
+        url = request.url 
+        if url is None:
+            raise ValueError("can't send a request without url")
+
+        cache: c.Cache = kwargs.get("cache", self.cache.fork(**kwargs)) 
+        url_hash = cache.get_hash(url, kwargs.get("cache_identifier", ""))
+
+        logger.debug(
+            (
+                "---- %s ----\n"
+                "\tmethod = %s\n"
+                "\turl    = %s\n"
+                "\tcache_enabled = %s\n"
+            ),
+            url_hash,
+            request.method,
+            url,
+            cache.is_enabled,
+        )
+
+        if cache.has_cache(url_hash):
+            return cache.get_cache(url_hash)
+        
+        current_delay = self.request_delay + (self.additional_delay_per_try * attempt)
+        elapsed_time = time.time() - self.last_request
+        to_wait = current_delay - elapsed_time
+
+        if to_wait > 0:
+            logger.debug(f"waiting {to_wait} at attempt {attempt}: {url}")
+            time.sleep(to_wait)
+
+        self.last_request = time.time()
+        
+        try:
+            response = self.session.send(self.session.prepare_request(request))
+        except requests.ConnectionError:
+            if self.max_retries is not None and self.max_retries <= attempt:
+                raise
+            return self._send_request(request, attempt=attempt+1)
+
+        if not self.validate_response(response):
+            if self.max_retries is not None and self.max_retries <= attempt:
+                raise requests.HTTPError(
+                    f"Max retries exceeded, server is rate limiting {response.status_code}: {response.reason}",
+                    response=response
+                )
+            return self._send_request(request, attempt=attempt+1, cache=cache, **kwargs)
+
+        if cache.is_enabled:
+            cache.write_cache(url_hash, response)
+        
+        return response
+    
+
+    def send_request(
+        self, 
+        request: requests.Request, 
+        cache_identifier: str = "", 
+        cache: Optional[c.Cache] = None, 
+        **kwargs
+    ) -> requests.Response:
+
         url = request.url 
         if url is None:
             raise ValueError("can't send a request without url")
@@ -131,7 +196,7 @@ class Connection:
         except requests.ConnectionError:
             if self.max_retries is not None and self.max_retries <= attempt:
                 raise
-            return self.send_request(request, attempt=attempt+1)
+            return self._send_request(request, attempt=attempt+1)
 
         if not self.validate_response(response):
             if self.max_retries is not None and self.max_retries <= attempt:
@@ -139,7 +204,7 @@ class Connection:
                     f"Max retries exceeded, server is rate limiting {response.status_code}: {response.reason}",
                     response=response
                 )
-            return self.send_request(request, attempt=attempt+1)
+            return self._send_request(request, attempt=attempt+1)
 
         if cache is not None:
             cache.write_cache(cache_url, response)
@@ -147,8 +212,8 @@ class Connection:
         return response
 
 
-    def get(self, url: str, headers: Optional[dict] = None, cache_identifier: str = "", cache: Optional[c.Cache] = None, **kwargs):
-        return self.send_request(requests.Request(
+    def get(self, url: str, headers: Optional[dict] = None, cache_identifier: str = "", **kwargs):
+        return self._send_request(requests.Request(
             'GET',
             url=url,
             headers=headers,
@@ -156,7 +221,7 @@ class Connection:
         ), cache_identifier=cache_identifier, cache=cache, **kwargs)
     
     def post(self, url: str, data: Optional[dict] = None, headers: Optional[dict] = None, cache_identifier: str = "", cache: Optional[c.Cache] = None,  **kwargs):
-        return self.send_request(requests.Request(
+        return self._send_request(requests.Request(
             'POST',
             url=url,
             headers=headers,
@@ -166,11 +231,11 @@ class Connection:
 
 
 class SilentConnection(Connection):
-    def send_request(self, request: requests.Request, attempt: int = 0, cache_identifier: str = "", cache: Optional[c.Cache] = None, **kwargs) -> Optional[requests.Response]:
+    def _send_request(self, request: requests.Request, attempt: int = 0, cache_identifier: str = "", cache: Optional[c.Cache] = None, **kwargs) -> Optional[requests.Response]:
         l = locals()
         l.update(l.pop("kwargs"))
         try:
-            return Connection.send_request(**l)
+            return Connection._send_request(**l)
         except requests.exceptions.RequestException as e:
             logger.warning(e)
             return None
