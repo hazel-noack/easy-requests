@@ -126,6 +126,9 @@ class Connection:
         cache: c.Cache = kwargs.get("cache", self.cache.fork(**kwargs)) 
         url_hash = cache.get_hash(url, kwargs.get("cache_identifier", ""))
 
+        if kwargs.get("referer") is not None:
+            request.headers["Referer"] = kwargs.get("Referer")
+
         max_retries = kwargs.get("max_retries")
         if max_retries is None:
             max_retries = self.max_retries
@@ -185,6 +188,7 @@ class Connection:
         
         max_retries: Optional[int] = None,
         cache_identifier: str = "", 
+        referer: Optional[str] = None,
 
         cache_enabled: Optional[bool] = None,
         cache_directory: Optional[str] = None,
@@ -205,6 +209,7 @@ class Connection:
 
         max_retries: Optional[int] = None,
         cache_identifier: str = "", 
+        referer: Optional[str] = None,
 
         cache_enabled: Optional[bool] = None,
         cache_directory: Optional[str] = None,
@@ -231,6 +236,7 @@ class Connection:
 
         max_retries: Optional[int] = None,
         cache_identifier: str = "", 
+        referer: Optional[str] = None,
 
         cache_enabled: Optional[bool] = None,
         cache_directory: Optional[str] = None,
