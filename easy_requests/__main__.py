@@ -54,7 +54,10 @@ def cli():
     from .connections import Connection
     connection = Connection()
     connection.generate_headers(get_referer_from=url)
-
+    
+    res = connection.get(url)
+    with Path(out_file).open("wb") as f:
+        f.write(res.content)
 
 
 
