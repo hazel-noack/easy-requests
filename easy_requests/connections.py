@@ -32,7 +32,9 @@ class Connection:
             self.session.headers.update(**headers)
         
         # cache related config
-        self.cache = c.ROOT_CACHE.fork(**locals())
+        new_kwargs = locals()
+        new_kwargs.pop("self")
+        self.cache = c.ROOT_CACHE.fork(**new_kwargs)
 
         # waiting between requests
         self.request_delay = request_delay
@@ -117,17 +119,23 @@ class Connection:
         cache: c.Cache = kwargs.get("cache", self.cache.fork(**kwargs)) 
         url_hash = cache.get_hash(url, kwargs.get("cache_identifier", ""))
 
+        max_retries = kwargs.get("max_retries")
+        if max_retries is None:
+            max_retries = self.max_retries
+
         logger.debug(
             (
-                "---- %s ----\n"
-                "\tmethod = %s\n"
-                "\turl    = %s\n"
+                "%s\n"
+                "\tmethod        = %s\n"
+                "\turl           = %s\n"
                 "\tcache_enabled = %s\n"
+                "\tmax_retries   = %s\n"
             ),
             url_hash,
             request.method,
             url,
             cache.is_enabled,
+            max_retries,
         )
 
         if cache.has_cache(url_hash):
@@ -146,12 +154,12 @@ class Connection:
         try:
             response = self.session.send(self.session.prepare_request(request))
         except requests.ConnectionError:
-            if self.max_retries is not None and self.max_retries <= attempt:
+            if max_retries is not None and max_retries <= attempt:
                 raise
             return self._send_request(request, attempt=attempt+1)
 
         if not self.validate_response(response):
-            if self.max_retries is not None and self.max_retries <= attempt:
+            if max_retries is not None and max_retries <= attempt:
                 raise requests.HTTPError(
                     f"Max retries exceeded, server is rate limiting {response.status_code}: {response.reason}",
                     response=response
@@ -167,75 +175,79 @@ class Connection:
     def send_request(
         self, 
         request: requests.Request, 
+        
+        max_retries: Optional[int] = None,
         cache_identifier: str = "", 
-        cache: Optional[c.Cache] = None, 
-        **kwargs
-    ) -> requests.Response:
 
-        url = request.url 
-        if url is None:
-            raise ValueError("can't send a request without url")
-        cache_url = url + cache_identifier
+        cache_enabled: Optional[bool] = None,
+        cache_directory: Optional[str] = None,
+        cache_expires_after: Optional[timedelta] = None,
+        **kwargs,
+    ):
+        new_kwargs = locals()
+        new_kwargs.update(new_kwargs.pop("kwargs"))
 
-        cache = self.cache if cache is None else cache
-        if cache is not None and cache.has_cache(cache_url):
-            return cache.get_cache(cache_url)
-        
-        current_delay = self.request_delay + (self.additional_delay_per_try * attempt)
-        elapsed_time = time.time() - self.last_request
-        to_wait = current_delay - elapsed_time
-
-        if to_wait > 0:
-            logger.info(f"waiting {to_wait} at attempt {attempt}: {url}")
-            time.sleep(to_wait)
-
-        self.last_request = time.time()
-        
-        try:
-            response = self.session.send(self.session.prepare_request(request))
-        except requests.ConnectionError:
-            if self.max_retries is not None and self.max_retries <= attempt:
-                raise
-            return self._send_request(request, attempt=attempt+1)
-
-        if not self.validate_response(response):
-            if self.max_retries is not None and self.max_retries <= attempt:
-                raise requests.HTTPError(
-                    f"Max retries exceeded, server is rate limiting {response.status_code}: {response.reason}",
-                    response=response
-                )
-            return self._send_request(request, attempt=attempt+1)
-
-        if cache is not None:
-            cache.write_cache(cache_url, response)
-        
-        return response
+        return type(self)._send_request(**new_kwargs)
 
 
-    def get(self, url: str, headers: Optional[dict] = None, cache_identifier: str = "", **kwargs):
+    def get(
+        self, 
+        url: str, 
+        headers: Optional[dict] = None, 
+        request_kwargs: Optional[dict] = None,
+
+        max_retries: Optional[int] = None,
+        cache_identifier: str = "", 
+
+        cache_enabled: Optional[bool] = None,
+        cache_directory: Optional[str] = None,
+        cache_expires_after: Optional[timedelta] = None,
+        **kwargs,
+    ):
+        new_kwargs = locals()
+        new_kwargs.pop("self")
+        new_kwargs.update(new_kwargs.pop("kwargs"))
+
         return self._send_request(requests.Request(
             'GET',
             url=url,
             headers=headers,
-            **kwargs
-        ), cache_identifier=cache_identifier, cache=cache, **kwargs)
+            **({} if request_kwargs is None else request_kwargs)
+        ), **new_kwargs)
     
-    def post(self, url: str, data: Optional[dict] = None, headers: Optional[dict] = None, cache_identifier: str = "", cache: Optional[c.Cache] = None,  **kwargs):
+    def post(
+        self, 
+        url: str, 
+        data: Optional[dict] = None, 
+        headers: Optional[dict] = None, 
+        request_kwargs: Optional[dict] = None,
+
+        max_retries: Optional[int] = None,
+        cache_identifier: str = "", 
+
+        cache_enabled: Optional[bool] = None,
+        cache_directory: Optional[str] = None,
+        cache_expires_after: Optional[timedelta] = None,
+        **kwargs,
+    ):
+        new_kwargs = locals()
+        new_kwargs.pop("self")
+        new_kwargs.update(new_kwargs.pop("kwargs"))
+
         return self._send_request(requests.Request(
             'POST',
             url=url,
             headers=headers,
             data=data,
-            **kwargs,
-        ), cache_identifier=cache_identifier, cache=cache, **kwargs)
+            **({} if request_kwargs is None else request_kwargs),
+        ), **new_kwargs)
 
 
 class SilentConnection(Connection):
-    def _send_request(self, request: requests.Request, attempt: int = 0, cache_identifier: str = "", cache: Optional[c.Cache] = None, **kwargs) -> Optional[requests.Response]:
-        l = locals()
-        l.update(l.pop("kwargs"))
+    def _send_request(self, **kwargs) -> Optional[requests.Response]:
         try:
-            return Connection._send_request(**l)
+            return super()._send_request(**kwargs)
         except requests.exceptions.RequestException as e:
             logger.warning(e)
             return None
+        

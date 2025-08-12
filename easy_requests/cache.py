@@ -43,23 +43,25 @@ class Cache:
     key_cache_directory = "cache_directory"
     key_cache_expires_after = "cache_expires_after"
     def fork(self, **kwargs) -> Cache:
-        directory = kwargs.get(self.key_cache_directory) or self._directory
+        directory = kwargs.get(self.key_cache_directory)
+        if directory is None:
+            directory = self._directory
         
-        if self.key_cache_enabled in kwargs:
+        if kwargs.get(self.key_cache_enabled) is not None:
             if not kwargs[self.key_cache_enabled]:
                 directory = None
             elif directory is None:
-                logger.error("can't enable cache because no cache directory is defined")
+                raise ValueError("can't enable cache because no cache directory is defined")
 
         expires_after = kwargs.get(self.key_cache_expires_after)
         if expires_after is None:
             expires_after = self.expires_after
 
-        if directory == self.directory and expires_after == self.expires_after:
-            logger.debug("cache didn't change, returning self")
+        # if didn't change can just return current cache
+        if directory == self._directory and expires_after == self.expires_after:
             return self
 
-        logger.debug("forking cache")
+        logger.debug("forking cache %s %s", directory, expires_after)
         return Cache(
             directory=None if directory is None else str(directory),
             expires_after=expires_after,
