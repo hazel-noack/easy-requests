@@ -137,7 +137,8 @@ class Connection:
                 "\turl           = %s\n"
                 "\tcache_enabled = %s\n"
                 "\tmax_retries   = %s\n"
-            ),
+                "\t[headers]\n"
+            ) + "".join(f"\t\t{key} = {val}\n" for key, val in request.headers.items()),
             url_hash,
             request.method,
             url,
