@@ -1,4 +1,4 @@
-name: test and publish
+name: publish easy_requests
 
 on: push
 
