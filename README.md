@@ -20,10 +20,13 @@ pip install easy-requests
 ### Basic Usage
 
 ```python
-from python_requests import Connection, set_cache_directory
+from easy_requests import Connection, init_cache
+ 
+init_cache(".cache")
 
-set_cache_directory("/tmp/your-project")
 connection = Connection()
+# to generate headers that mimic the browser
+connection.generate_headers()
 
 response = connection.get("https://example.com")
 ```
@@ -31,14 +34,40 @@ response = connection.get("https://example.com")
 ### Using with Cloudscraper
 
 ```python
-from python_requests import Connection, set_cache_directory
+from easy_requests import Connection
 import cloudscraper
 
-set_cache_directory("/tmp/your-project")
 connection = Connection(cloudscraper.create_scraper())
-
 response = connection.get("https://example.com")
 ```
+
+### Configuring cache
+
+This won't use caching without you configuring it. 
+
+You can configure the default cache either with environment variables or using `init_cache`. The env keys are `EASY_REQUESTS_CACHE_DIR` and `EASY_REQUESTS_CACHE_EXPIRES` (in days).
+
+```py
+from easy_requests import init_cache
+
+init_cache(".cache")
+```
+
+Alternatively you can pass arguments into `Connection(...)` and the request function:
+
+- `cache_enabled: Optional[bool]`
+- `cache_directory: Optional[str]`
+- `cache_expires_after: Optional[timedelta]`
+
+```py
+from easy_requests import Connection
+
+Connection(
+    cache_enabled = True
+)
+```
+
+If you pass in `cache_enabled=True` it will raise a Value error if no cache directory was found.
 
 ## License
 
