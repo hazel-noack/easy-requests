@@ -5,11 +5,11 @@ logging.basicConfig(level=logging.DEBUG)
 load_dotenv()
 
 from easy_requests import cache
-from easy_requests import Connection
+from easy_requests import Connection, SilentConnection
 
 
 if __name__ == "__main__":
-    c = Connection(
+    c = SilentConnection(
         cache_enabled=True
     )
     c.get("https://google.cum")

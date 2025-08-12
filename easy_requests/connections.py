@@ -244,9 +244,9 @@ class Connection:
 
 
 class SilentConnection(Connection):
-    def _send_request(self, **kwargs) -> Optional[requests.Response]:
+    def _send_request(self,*args, **kwargs) -> Optional[requests.Response]:
         try:
-            return super()._send_request(**kwargs)
+            return super()._send_request(*args, **kwargs)
         except requests.exceptions.RequestException as e:
             logger.warning(e)
             return None
