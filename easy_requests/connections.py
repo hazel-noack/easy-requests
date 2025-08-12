@@ -4,6 +4,7 @@ import requests
 from datetime import timedelta
 import time
 import logging
+from urllib.parse import urlparse, urlunparse
 
 from . import cache as c
 
@@ -67,14 +68,20 @@ class Connection:
 
         self.max_retries = max_retries
 
-    def generate_headers(self, referer: Optional[str] = None):
+    def generate_headers(self, referer: Optional[str] = None, get_referer_from: Optional[str] = None):
         headers = {
             "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:139.0) Gecko/20100101 Firefox/139.0",
             "Connection": "keep-alive",
             "Accept-Language": "en-US,en;q=0.5",
         }
 
+        if get_referer_from:
+            parsed = urlparse(get_referer_from)
+            referer = str(urlunparse([parsed.scheme, parsed.netloc, "", "", "", ""]))
+            logger.debug("generating referer %s -> %s", get_referer_from, referer)
+
         if referer is not None:
+            logger.debug("setting referer to %s", referer)
             headers["Referer"] = referer
 
         self.session.headers.update(**headers)
