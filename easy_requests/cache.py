@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from typing import Optional, Tuple, Union
 from codecs import encode
@@ -15,24 +17,56 @@ logger = logging.getLogger("easy_requests")
 
 
 class Cache:
-    def __init__(self, directory: str, expires_after: timedelta = timedelta(days=float(os.getenv("EASY_REQUESTS_CACHE_EXPIRES", 1)))):
-        logger.info("initializing cache at %s", directory)
+    def __init__(
+        self, 
+        directory: Optional[str], 
+        expires_after: timedelta = timedelta(days=float(os.getenv("EASY_REQUESTS_CACHE_EXPIRES", 1)))
+    ):
+        logger.info("initializing cache at %s, values expire after %s", directory, expires_after)
         
-        self.directory = Path(directory)
-        self.database_file = self.directory / "cache_metadata.db"
-
         self.expires_after = expires_after
+        self._directory: Optional[Path] = None if directory is None or directory.strip() == "" else Path(directory)
 
-        # initialization code
-        self.directory.mkdir(exist_ok=True)
-        with sqlite3.connect(self.database_file) as conn:
-            conn.execute("""
-            CREATE TABLE IF NOT EXISTS url_cache (
-                url_hash TEXT PRIMARY KEY,
-                expires_at TIMESTAMP
-            )
-            """)
-            conn.commit()
+        # initialize database if exist
+        if self.is_enabled:
+            self.directory.mkdir(exist_ok=True)
+            with sqlite3.connect(self.database_file) as conn:
+                conn.execute("""
+                CREATE TABLE IF NOT EXISTS url_cache (
+                    url_hash TEXT PRIMARY KEY,
+                    expires_at TIMESTAMP
+                )
+                """)
+                conn.commit()
+
+    key_cache_enabled = "cache_enabled"
+    key_cache_directory = "cache_directory"
+    key_cache_expires_after = "expires_after"
+    def fork(self, **kwargs) -> Cache:
+        directory = kwargs.get(self.key_cache_directory, self._directory)
+        if self.key_cache_enabled in kwargs:
+            if not kwargs[self.key_cache_enabled]:
+                directory = None
+            elif directory is None:
+                logger.error("can't enable cache because no cache directory is defined")
+
+        return Cache(
+            directory=directory,
+            expires_after=kwargs.get(self.key_cache_expires_after, self.expires_after)
+        )
+
+    @property
+    def is_enabled(self) -> bool:
+        return self._directory is not None
+
+    @property
+    def directory(self) -> Path:
+        assert self._directory is not None, "directory needs to be set"
+        return self._directory
+
+    @property
+    def database_file(self) -> Path:
+        return self.directory / "cache_metadata.db"
 
     @staticmethod
     def get_url_hash(url: str) -> str:
@@ -40,10 +74,13 @@ class Cache:
 
 
     def get_url_file(self, url: str) -> Path:
-        return Path(self.directory, f"{self.get_url_hash(url)}.request")
+        return self.directory / f"{self.get_url_hash(url)}.request"
 
 
     def has_cache(self, url: str) -> bool:
+        if not self.is_enabled:
+            return False
+
         url_hash = self.get_url_hash(url)
         cache_file = self.get_url_file(url)
         
@@ -184,16 +221,14 @@ class Cache:
 
 
 
-DEFAULT_CACHE: Optional[Cache] = None
-if os.getenv("EASY_REQUESTS_CACHE_DIR"):
-    logger.info("environment variable EASY_REQUESTS_CACHE_DIR was set, initializing default cache dir")
-    DEFAULT_CACHE = Cache(directory=os.getenv("EASY_REQUESTS_CACHE_DIR", ""))
+ROOT_CACHE: Cache = Cache(
+    directory=os.getenv("EASY_REQUESTS_CACHE_DIR"),
+    expires_after=timedelta(
+        days=float(os.getenv("EASY_REQUESTS_CACHE_EXPIRES", 1))
+    ),
+)
 
-
-def init_cache(directory: str, expires_after: timedelta = timedelta(days=float(os.getenv("EASY_REQUESTS_CACHE_EXPIRES", 1)))):
-    global DEFAULT_CACHE
-    DEFAULT_CACHE = Cache(
-        directory=directory,
-        expires_after=expires_after
-    )
+def init_cache(cache_directory: str, expires_after: timedelta = timedelta(days=float(os.getenv("EASY_REQUESTS_CACHE_EXPIRES", 1)))):
+    global ROOT_CACHE
+    ROOT_CACHE = ROOT_CACHE.fork(**locals())
 

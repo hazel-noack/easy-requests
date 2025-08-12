@@ -14,6 +14,7 @@ logger = logging.getLogger("easy_requests")
 class Connection:
     def __init__(
         self, 
+        
         session: Optional[requests.Session] = None,
         headers: Optional[dict] = None,
         request_delay: float = 0,
