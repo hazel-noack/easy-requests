@@ -68,7 +68,3 @@ Connection(
 ```
 
 If you pass in `cache_enabled=True` it will raise a Value error if no cache directory was found.
-
-## License
-
-This project is licensed under the [**🏳️‍🌈 Opinionated Queer License v1.2**](https://oql.avris.it/license). So use is strictly prohibited for cops, military and everyone who actively works against human rights.
