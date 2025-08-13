@@ -135,12 +135,12 @@ class Connection:
             
         return True
 
-    def _send_request(self, request: requests.Request, attempt: int = 0, **kwargs) -> requests.Response:
+    def _send_request(self, request: requests.Request, attempt: int = 0, cache: Optional[c.Cache] = None, **kwargs) -> requests.Response:
         url = request.url 
         if url is None:
             raise ValueError("can't send a request without url")
 
-        cache: c.Cache = kwargs.get("cache", self.cache.fork(**kwargs)) 
+        cache = self.cache.fork(**kwargs) if cache is None else cache
         url_hash = cache.get_hash(url, kwargs.get("cache_identifier", ""))
 
         if kwargs.get("referer") is not None:
