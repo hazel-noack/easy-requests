@@ -5,6 +5,7 @@ from datetime import timedelta
 import time
 import logging
 from urllib.parse import urlparse, urlunparse
+import json
 
 from . import cache as c
 
@@ -161,43 +162,51 @@ class Connection:
         if max_retries is None:
             max_retries = self.max_retries
 
+        if not logger.isEnabledFor(logging.DEBUG):
+            logger.info("%s %s", request.method, url)
+
         logger.debug(
             (
                 "%s\n"
                 "\tmethod        = %s\n"
                 "\turl           = %s\n"
                 "\tcache_enabled = %s\n"
-                "\tmax_retries   = %s\n"
+                "\tattempt       = %s/%s\n"
             ),
             url_hash,
             request.method,
             url,
             cache.is_enabled,
-            max_retries,
+            attempt, max_retries,
         )
 
         if cache.has_cache(url_hash):
             return cache.get_cache(url_hash)
+        
+        # all stuff that can be done before sending the request should be done here to minimize the possible time waiting
+        prepared = self.session.prepare_request(request)
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("headers for %s\n%s", url_hash, json.dumps(dict(prepared.headers), indent=4))
         
         current_delay = self.request_delay + (self.additional_delay_per_try * attempt)
         elapsed_time = time.time() - self.last_request
         to_wait = current_delay - elapsed_time
 
         if to_wait > 0:
-            logger.debug(f"waiting {to_wait} at attempt {attempt}: {url}")
+            logger.debug("waiting for %.3f seconds", to_wait)
             time.sleep(to_wait)
 
         self.last_request = time.time()
         
         try:
-            response = self.session.send(self.session.prepare_request(request))
+            response = self.session.send(prepared)
         except requests.ConnectionError:
             if max_retries is not None and max_retries <= attempt:
                 raise
             return self._send_request(request, attempt=attempt+1, cache=cache, **kwargs)
         
         if response.status_code in self.warning_status_codes:
-            logger.warning("server returned error status code %s - %s", response.status_code, response.reason)
+            logger.warning("server returned error status code %s %s", response.status_code, response.reason)
             return response
 
         if not self.validate_response(response):
