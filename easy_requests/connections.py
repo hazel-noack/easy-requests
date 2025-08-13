@@ -18,11 +18,15 @@ class Connection:
     Args:
         session: Existing requests Session to use (creates new if None).  
         headers: Default headers to add to all requests.
+
         request_delay: Base delay between requests in seconds.
-        additional_delay_per_try: Extra delay added per retry attempt.
-        error_status_codes: HTTP status codes that trigger immediate failure.
-        rate_limit_status_codes: HTTP status codes that trigger retries.
         max_retries: Maximum number of retry attempts for failed requests.
+        additional_delay_per_try: Extra delay added per retry attempt.
+        
+        error_status_codes: HTTP status codes that trigger immediate failure.
+        warning_status_codes: HTTP status code that trigger immediate failure but won't raise an error
+        rate_limit_status_codes: HTTP status codes that trigger retries.
+
         cache_enabled: Whether response caching is enabled.
         cache_directory: Directory path for cached responses.
         cache_expires_after: Duration before cached responses expire.
@@ -33,11 +37,14 @@ class Connection:
 
         session: Optional[requests.Session] = None,
         headers: Optional[dict] = None,
+
         request_delay: float = 0,
-        additional_delay_per_try: float = 1,
-        error_status_codes: Optional[Set[int]] = None,
-        rate_limit_status_codes: Optional[Set[int]] = None,
         max_retries: Optional[int] = 5,
+        additional_delay_per_try: float = 1,
+
+        error_status_codes: Optional[Set[int]] = None,
+        warning_status_codes: Optional[Set[int]] = None,
+        rate_limit_status_codes: Optional[Set[int]] = None,
         
         cache_enabled: Optional[bool] = None,
         cache_directory: Optional[str] = None,
@@ -54,10 +61,13 @@ class Connection:
         new_kwargs.pop("self")
         self.cache = c.ROOT_CACHE.fork(**new_kwargs)
 
-        # waiting between requests
+        # values to calculate next request
+        self.last_request: float = 0
+
+        # simple config
+        self.max_retries = max_retries
         self.request_delay = request_delay
         self.additional_delay_per_try = additional_delay_per_try
-        self.last_request: float = 0
 
         # response validation config
         self.error_status_codes = error_status_codes if error_status_codes is not None else {
@@ -83,7 +93,8 @@ class Connection:
             509,  # Bandwidth Limit Exceeded
         }
 
-        self.max_retries = max_retries
+        # HTTP status code that trigger immediate failure but won't raise an error
+        self.warning_status_codes: Set[int] = warning_status_codes if warning_status_codes is not None else set()
 
     def generate_headers(self, referer: Optional[str] = None, get_referer_from: Optional[str] = None):
         headers = {
@@ -184,6 +195,10 @@ class Connection:
             if max_retries is not None and max_retries <= attempt:
                 raise
             return self._send_request(request, attempt=attempt+1, cache=cache, **kwargs)
+        
+        if response.status_code in self.warning_status_codes:
+            logger.warning("server returned error status code %s - %s", response.status_code, response.reason)
+            return response
 
         if not self.validate_response(response):
             if max_retries is not None and max_retries <= attempt:

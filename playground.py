@@ -8,5 +8,7 @@ from easy_requests import Connection, SilentConnection, init_cache
 
 
 if __name__ == "__main__":
-    c = Connection()
-    c.get("https://google.cum")
+    c = Connection(warning_status_codes={200,}, cache_enabled=False)
+    r = c.get("https://google.com")
+
+    print(r.status_code)
