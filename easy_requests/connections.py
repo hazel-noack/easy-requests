@@ -183,7 +183,7 @@ class Connection:
         except requests.ConnectionError:
             if max_retries is not None and max_retries <= attempt:
                 raise
-            return self._send_request(request, attempt=attempt+1)
+            return self._send_request(request, attempt=attempt+1, cache=cache, **kwargs)
 
         if not self.validate_response(response):
             if max_retries is not None and max_retries <= attempt:
